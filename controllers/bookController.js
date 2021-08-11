@@ -98,8 +98,8 @@ exports.book_create_post = [
             else {
                 req.body.genre = new Array(req.body.genre);
             }
-            next();
         }
+        next();
     },
 
     // Validate fields.
