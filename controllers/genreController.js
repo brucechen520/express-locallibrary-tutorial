@@ -48,11 +48,8 @@ exports.genre_create_get = function(req, res) {
 // Handle Genre create on POST.
 exports.genre_create_post =  [
 
-    // Validate that the name field is not empty.
-    body('name', 'Genre name required').isLength({ min: 1 }).trim(),
-
-    // Sanitize (trim and escape) the name field.
-    sanitizeBody('name').trim().escape(),
+    // Validate and santise the name field.
+    body('name', 'Genre name must contain at least 3 characters').trim().isLength({ min: 3 }).escape(),
 
     // Process request after validation and sanitization.
     (req, res, next) => {
@@ -145,10 +142,54 @@ exports.genre_delete_post = function(req, res, next) {
 
 // Display Genre update form on GET.
 exports.genre_update_get = function(req, res) {
-    res.send('NOT IMPLEMENTED: Genre update GET');
+    
+    const id = mongoose.Types.ObjectId(req.params.id);
+    Genre.findById(id, function (err, genre) {
+        if (err) return next(err);
+        if(!genre) {
+            let err = new Error('Genre not found');
+            err.status = 404;
+            return next(err);
+        }
+        res.render('genre_form', { title: 'Update Genre', genre: genre });
+    });
 };
 
 // Handle Genre update on POST.
-exports.genre_update_post = function(req, res) {
-    res.send('NOT IMPLEMENTED: Genre update POST');
-};
+exports.genre_update_post = [
+
+    // Validate and sanitze the name field.
+    body('name', 'Genre name must contain at least 3 characters').trim().isLength({ min: 3 }).escape(),
+    
+    (req, res, next) => {
+        const errors = validationResult(req);
+
+        let genre = new Genre({
+            name: req.body.name,
+            _id: req.params.id
+        })
+
+        if( !errors.isEmpty()) {
+            res.render('genre_form', { title: 'Update Genre', genre: genre, errors: errors.array() });
+            return
+        }
+        else {
+            Genre.findOne({ 'name': req.body.name })
+                .exec( function(err, found_genre ) {
+                    if(err) return next(err);
+
+                    if(found_genre) { 
+                        res.redirect(found_genre.url);
+                    }
+                    else {
+                        const id = mongoose.Types.ObjectId(req.params.id);
+                        Genre.findByIdAndUpdate(id, genre, {}, function(err, thegenre) {
+                            if (err) return next(err); 
+                            // Successful - redirect to genre detail page.
+                            res.redirect(thegenre.url);
+                        });
+                    }
+                })
+        }
+    }
+];
