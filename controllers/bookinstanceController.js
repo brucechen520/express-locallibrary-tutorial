@@ -3,6 +3,7 @@ const Book = require('../models/book');
 const { body,validationResult } = require('express-validator/check');
 const { sanitizeBody } = require('express-validator/filter');
 const mongoose = require('mongoose');
+const async = require('async');
 
 // Display list of all BookInstances.
 exports.bookinstance_list = function(req, res) {
@@ -93,13 +94,31 @@ exports.bookinstance_create_post = [
 ];
 
 // Display BookInstance delete form on GET.
-exports.bookinstance_delete_get = function(req, res) {
-    res.send('NOT IMPLEMENTED: BookInstance delete GET');
+exports.bookinstance_delete_get = function(req, res, next) {
+    const id = mongoose.Types.ObjectId(req.params.id);
+    BookInstance.findById(id)
+        .populate('book')
+        .exec(function (err, bookinstance) {
+            if(err) return next(err);
+            if(!bookinstance) {
+                let err = new Error('Book copy not found');
+                err.status = 404;
+                return next(err);
+            }
+            // Successful, so render.
+            res.render('bookinstance_delete', { title: 'Delete BookInstance', bookinstance:  bookinstance});
+        });
 };
 
 // Handle BookInstance delete on POST.
-exports.bookinstance_delete_post = function(req, res) {
-    res.send('NOT IMPLEMENTED: BookInstance delete POST');
+exports.bookinstance_delete_post = function(req, res, next) {
+    
+    const id = req.body.id;
+    BookInstance.findByIdAndRemove(id, function deleteBookInstance(err) {
+        if (err) return next(err);
+        // Success, so redirect to list of BookInstance items.
+        res.redirect('/catalog/bookinstances');
+    });
 };
 
 // Display BookInstance update form on GET.
