@@ -163,12 +163,55 @@ exports.book_create_post = [
 
 // Display book delete form on GET.
 exports.book_delete_get = function(req, res) {
-    res.send('NOT IMPLEMENTED: Book delete GET');
+    const id = mongoose.Types.ObjectId(req.params.id);
+    
+    async.parallel({
+        book: function(callback) {
+            Book.findById(id).populate('author').populate('bookinstance').exec(callback);
+        },
+        book_bookinstances: function(callback) {
+            BookInstance.find({ 'book': id}).exec(callback);
+        }
+    }, function (err, results) {
+        if (err) return next(err);
+        if( !results.book ) {
+            res.redirect('/catalog/books');
+        }
+        res.render('book_delete', { title: 'Delete Book', book: results.book, book_instances: results.book_bookinstances } );
+    });
 };
 
 // Handle book delete on POST.
-exports.book_delete_post = function(req, res) {
-    res.send('NOT IMPLEMENTED: Book delete POST');
+exports.book_delete_post = function(req, res, next) {
+
+    // Assume the post has valid id (ie no validation/sanitization).
+
+    async.parallel({
+        book: function(callback) {
+            Book.findById(req.body.id).populate('author').populate('genre').exec(callback);
+        },
+        book_bookinstances: function(callback) {
+            BookInstance.find({ 'book': req.body.id }).exec(callback);
+        },
+    }, function(err, results) {
+        if (err) { return next(err); }
+        // Success
+        if (results.book_bookinstances.length > 0) {
+            // Book has book_instances. Render in same way as for GET route.
+            res.render('book_delete', { title: 'Delete Book', book: results.book, book_instances: results.book_bookinstances } );
+            return;
+        }
+        else {
+            // Book has no BookInstance objects. Delete object and redirect to the list of books.
+            Book.findByIdAndRemove(req.body.id, function deleteBook(err) {
+                if (err) { return next(err); }
+                // Success - got to books list.
+                res.redirect('/catalog/books');
+            });
+
+        }
+    });
+
 };
 
 // Display book update form on GET.
